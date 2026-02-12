@@ -35,20 +35,6 @@ Because some states have multiple transitions for the same input symbol (e.g., $
 
 ## Code snippets
 ```python
-import random
-
-class Grammar:
-    def __init__(self):
-        self.Vn = {'S', 'A', 'C', 'D'}
-        self.Vt = {'a', 'b'}
-        self.P = {
-            'S': ['aA'],
-            'A': ['bS', 'bD'],
-            'D': ['bC', 'aD'],
-            'C': ['a', 'bA']
-        }
-        self.start_symbol = 'S'
-
     def generate_string(self):
         word = self.start_symbol
         while any(char in self.Vn for char in word):
@@ -66,12 +52,16 @@ class Grammar:
         return FiniteAutomaton(self.Vn, self.Vt, self.P, self.start_symbol)
 
 
-class FiniteAutomaton:
-    def __init__(self, states, alphabet, rules, start_state):
-        self.delta = rules
-        self.q0 = start_state
-        self.F = {'End'}
+```
+`generate_string()` Function
 
+This function implements a stochastic top-down parsing approach:
+
+1. It begins with the start symbol S.
+2. It uses a while loop to scan for any non-terminal symbols.
+3. For every non-terminal found, it uses random.choice() to select one of the corresponding production rules and performs a string replacement.
+4. The process repeats until the string consists entirely of terminal symbols $\{a, b\}$.
+```python
     def check_string(self, input_string):
         current_states = {self.q0}
 
@@ -92,25 +82,15 @@ class FiniteAutomaton:
         return any(state in self.F for state in current_states)
 
 
-if __name__ == "__main__":
-    my_grammar = Grammar()
-    print("Generated 5 valid strings")
-    generated_list = [my_grammar.generate_string() for _ in range(5)]
-    for i, s in enumerate(generated_list, 1):
-        print(f"{i}. {s}")
 
-    fa = my_grammar.to_finite_automaton()
-
-    print("\nInteractive Validation")
-    while True:
-        user_input = input("Enter a string to check (or type 'exit' to quit): ").strip()
-        if user_input.lower() == 'exit':
-            break
-
-        is_valid = fa.check_string(user_input)
-        print(f"Is '{user_input}' valid? {is_valid}\n")
 ```
+`check_string()` Function
 
+This function simulates the behavior of a Non-deterministic Finite Automaton:
+1. It maintains a set of current_states to track all possible positions the automaton could be in simultaneously.
+2. For each character in the input string, it calculates the next_states by looking up all valid transitions from every state in the current set.
+3. If a rule results in a single terminal (e.g., $C \to a$), the automaton moves to a virtual End state.
+4. After the input is fully processed, the function returns True if the End state is present in the final set of active states.
 ## Conclusions/Screenshots/Results
 
 **Console Output:**
@@ -131,7 +111,12 @@ Is 'ababa' valid? True
 Enter a string to check (or type 'exit' to quit): efheikgfhe
 Is 'efheikgfhe' valid? False
 
-**Conclusions**
+## Challenges & Difficulties
+
+* **Handling Non-determinism:** The primary challenge was the initial "greedy" logic where the code only picked the first matching rule. This caused valid strings like ababa to return False. Implementing a set-based transition logic was necessary to explore all possible paths.
+* **Defining the Final State:** Since the grammar does not explicitly label a "final state," a virtual End state had to be introduced to signal that a terminal-only production (like $C \to a$) successfully consumed the last character.
+
+## Conclusions
 
  The project demonstrates the duality between Regular Grammars and Finite Automata. By implementing the transition logic, I observed that the provided grammar is non-deterministic, necessitating an NFA approach for string validation. The final implementation supports both automated generation of valid strings and manual user input validation, ensuring the robustness of the system.
 ## References
