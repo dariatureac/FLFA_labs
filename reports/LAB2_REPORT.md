@@ -28,11 +28,65 @@ The core of this laboratory is the study of Determinism versus Non-determinism.
 
 ## Implementation description
 
-* **Chomsky Classification:** The `classify_grammar()` method analyzes the production rules. It verifies if the rules adhere to the format $A \to aB$ or $A \to a$ for Regular Grammars (Type 3) or if they satisfy the broader requirements of Context-Free (Type 2) or Context-Sensitive (Type 1) languages.
-* **Determinism Check:** The `is_deterministic()` method iterates through the transition table. It specifically looks for states that map to multiple destination states for a single terminal symbol, identifying the non-determinism present in Variant 24 (where $A \to \{S, D\}$ on input 'b').
-* **NDFA to DFA Conversion:** This is implemented using the Subset Construction Algorithm. The logic creates new "composite" states by grouping NFA states that can be reached simultaneously. These groups are represented as sorted tuples to maintain consistency and allow them to serve as dictionary keys.
-* **FA to Grammar:** The `to_regular_grammar()` method reverses the automaton logic, turning state transitions back into production rules ($S \xrightarrow{a} A$ becomes $S \to aA$).
+### Chomsky Classification
 
+The `classify_grammar()` method analyzes the production rules of the grammar and determines its position in the Chomsky hierarchy.
+
+A grammar is classified as **Type 3 (Regular)** if all rules follow the form:
+
+A → aB  
+A → a
+
+If some rules violate this structure, the grammar may belong to a higher type (Type 2 or Type 1).
+
+---
+
+### Determinism Check
+
+The `is_deterministic()` method checks whether the automaton is deterministic.
+
+It scans the transition table and verifies if a state has **more than one possible transition for the same input symbol**.
+
+In **Variant 24**, the automaton is non-deterministic because:
+
+δ(q0, b) = {q0, q1}
+
+Since two possible states exist for the same input, the automaton is classified as **NDFA**.
+
+---
+
+### NDFA to DFA Conversion
+
+The NDFA is converted to a DFA using the **Subset Construction Algorithm**.
+
+Instead of single states, the DFA uses **sets of NFA states**, for example:
+
+{q0}  
+{q0,q1}  
+{q0,q1,q2}
+
+Each set represents all states the NDFA could be in at that moment.  
+Transitions are calculated by combining transitions from all states inside the set.
+
+---
+
+### FA to Grammar
+
+The `to_regular_grammar()` method converts automaton transitions into grammar rules.
+
+A transition
+
+qi --a--> qj
+
+is converted into the production rule:
+
+qi → aqj
+
+If the destination state is **final**, an additional rule is added:
+
+qi → a
+
+This allows the grammar to generate valid terminal strings.
 ---
 
 ## Code snippets
@@ -41,31 +95,44 @@ The core of this laboratory is the study of Determinism versus Non-determinism.
 
 I implemented the `classify_grammar` method to automatically determine the type of grammar based on its production rules.
 ```python
-      def classify_grammar(self):
-        # Chomsky Hierarchy Classification
-        is_type_1 = True
-        is_type_2 = True
-        is_type_3 = True
+          def classify_grammar(self):
+        is_type3 = True
+        is_type2 = True
+        is_type1 = True
 
         for lhs, rhs_list in self.P.items():
+
+            if lhs not in self.Vn:
+                is_type2 = False
+
             for rhs in rhs_list:
-                # Type 3 (Regular): A -> aB or A -> a
-                if not ((len(rhs) == 1 and rhs in self.Vt) or
-                        (len(rhs) == 2 and rhs[0] in self.Vt and rhs[1] in self.Vn)):
-                    is_type_3 = False
 
-                # Type 2 (Context-Free): LHS must be a single non-terminal
-                if len(lhs) != 1 or lhs not in self.Vn:
-                    is_type_2 = False
+                # Type 3: A -> a or A -> aB
+                if len(rhs) == 1:
+                    if rhs not in self.Vt:
+                        is_type3 = False
 
-                # Type 1 (Context-Sensitive): |LHS| <= |RHS|
+                elif len(rhs) >= 2:
+                    terminal = rhs[0]
+                    nonterminal = rhs[1:]
+
+                    if terminal not in self.Vt or nonterminal not in self.Vn:
+                        is_type3 = False
+                else:
+                    is_type3 = False
+
+                # Type 1 condition
                 if len(lhs) > len(rhs):
-                    is_type_1 = False
+                    is_type1 = False
 
-        if is_type_3: return "Type 3 (Regular Grammar)"
-        if is_type_2: return "Type 2 (Context-Free Grammar)"
-        if is_type_1: return "Type 1 (Context-Sensitive Grammar)"
-        return "Type 0 (Unrestricted Grammar)"
+        if is_type3:
+            return "Type 3 (Regular Grammar)"
+        elif is_type2:
+            return "Type 2 (Context-Free Grammar)"
+        elif is_type1:
+            return "Type 1 (Context-Sensitive Grammar)"
+        else:
+            return "Type 0 (Unrestricted Grammar)"
 
 ```
 Logic: The function iterates through all rules. If a rule has more than one non-terminal on the right or symbols on the left (LHS), it is downgraded from Type 3.
@@ -74,88 +141,110 @@ Logic: The function iterates through all rules. If a rule has more than one non-
 
 This function checks if the current Finite Automaton is a DFA or NDFA.
 ```python
-        def is_deterministic(self):
-        # Check for NDFA
-        for state in self.Q:
-            chars_seen = []
-            if state in self.delta:
-                for symbol, next_states in self.delta[state].items():
-                    if len(next_states) > 1:  # Multiple transitions for same symbol
-                        return False
-        return True
+        def is_deterministic(Q, delta):
+    for state in Q:
+        if state in delta:
+            for symbol, next_states in delta[state].items():
+                if len(next_states) > 1:
+                    return False
+    return True
 ```
 
-Logic: Since my variant contains $A \to \{S, D\}$ for the input b, the function correctly identifies the automaton as Non-deterministic.
-
+Logic: If any state has more than one transition for the same symbol, the automaton is classified as NDFA.
 **NDFA to DFA**
 
 I used the Subset Construction Algorithm to convert the NDFA into a DFA.
 ```python
-        def is_deterministic(self):
-        # Check for NDFA
-        for state in self.Q:
-            chars_seen = []
-            if state in self.delta:
-                for symbol, next_states in self.delta[state].items():
-                    if len(next_states) > 1:  # Multiple transitions for same symbol
-                        return False
-        return True
-```
-Logic: The algorithm creates "composite states" (e.g., a state representing both $S$ and $D$). This removes ambiguity because for any input, the automaton now moves to exactly one composite state.
+        def nfa_to_dfa(Q, Sigma, delta, q0, F):
+    start_state = tuple(sorted([q0]))
+    dfa_states = [start_state]
+    dfa_transitions = {}
+    dfa_final_states = []
 
+    i = 0
+    while i < len(dfa_states):
+        current = dfa_states[i]
+        dfa_transitions[current] = {}
+
+        for symbol in Sigma:
+            next_state = set()
+
+            for s in current:
+                if s in delta and symbol in delta[s]:
+                    next_state.update(delta[s][symbol])
+
+            next_state = tuple(sorted(next_state))
+            dfa_transitions[current][symbol] = next_state
+
+            if next_state not in dfa_states:
+                dfa_states.append(next_state)
+
+        i += 1
+
+    for state in dfa_states:
+        if any(s in F for s in state):
+            dfa_final_states.append(state)
+
+    return dfa_states, dfa_transitions, dfa_final_states
+```
+Logic: The algorithm creates composite states representing groups of NDFA states.
+
+Example:
+
+{q0} – start state
+
+{q0,q1} – reachable from q0 with input b
+
+{q0,q1,q2} – reachable from {q0,q1} with input b
+
+These new grouped states ensure that the resulting automaton behaves deterministically.
 **FA to Grammar**
 
 I implemented the `to_regular_grammar` method to transform the Finite Automaton back into a generative Grammar object.
 
 ```python
-    def to_regular_grammar(self):
-        # FA to Regular Grammar
+        def to_regular_grammar(self):
         grammar_p = collections.defaultdict(list)
-        for state, transitions in self.delta.items():
-            for symbol, next_states in transitions.items():
-                for ns in next_states:
-                    if ns == 'End':
+
+        for state in self.delta:
+            for symbol in self.delta[state]:
+                for next_state in self.delta[state][symbol]:
+
+                    grammar_p[state].append(symbol + next_state)
+
+                    if next_state in self.F:
                         grammar_p[state].append(symbol)
-                    else:
-                        grammar_p[state].append(symbol + ns)
-    return Grammar(self.Q, self.Sigma, dict(grammar_p), self.q0)
+
+        return Grammar(self.Q, self.Sigma, dict(grammar_p), self.q0)
 ```
 ## Conclusions/Screenshots/Results
 
 **Console Output:**
 
 
-Grammar Type: Type 3 (Regular Grammar)
+1. Grammar Classification:
+Type 3 (Regular Grammar)
 
-Is the original FA deterministic? False
+2. Is FA deterministic?
+False
 
-NDFA to DFA Conversion Results:
+3. NFA → DFA
 
-New States (DFA): [('S',), ('A',), ('D', 'S'), ('C',), ('A', 'D'), ('End',), ('C', 'D', 'S'), ('D',), ('A', 'C'), ('A', 'D', 'End'), ('A', 'D', 'S')]
-  
-Transition from ('S',): {'a': ('A',)}
-  
-Transition from ('A',): {'b': ('D', 'S')}
-  
-Transition from ('D', 'S'): {'b': ('C',), 'a': ('A', 'D')}
-  
-Transition from ('C',): {'b': ('A',), 'a': ('End',)}
-  
-Transition from ('A', 'D'): {'b': ('C', 'D', 'S'), 'a': ('D',)}
-  
-Transition from ('End',): {}
-  
-Transition from ('C', 'D', 'S'): {'b': ('A', 'C'), 'a': ('A', 'D', 'End')}
-  
-Transition from ('D',): {'b': ('C',), 'a': ('D',)}
-  
-Transition from ('A', 'C'): {'b': ('A', 'D', 'S'), 'a': ('End',)}
-  
-Transition from ('A', 'D', 'End'): {'b': ('C', 'D', 'S'), 'a': ('D',)}
-  
-Transition from ('A', 'D', 'S'): {'b': ('C', 'D', 'S'), 'a': ('A', 'D')}
+States:
+{q0,q1,q2}
+{q0}
+{q0,q1}
 
-New Final States: [('End',), ('A', 'D', 'End')]
+Transitions:
+δ({q0}, a) = {q0}
+δ({q0}, b) = {q0,q1}
+δ({q0,q1}, a) = {q0,q1}
+δ({q0,q1}, b) = {q0,q1,q2}
+δ({q0,q1,q2}, a) = {q0,q1,q2}
+δ({q0,q1,q2}, b) = {q0,q1,q2}
+
+Final states:
+{q0,q1,q2}
 
 ## Challenges & Difficulties
 
