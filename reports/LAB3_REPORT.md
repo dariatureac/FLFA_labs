@@ -59,6 +59,20 @@ The order of token rules is important because **more specific patterns must be e
 **Token Specification**
 
 The lexer defines token patterns using regular expressions.
+To achieve this, the lexer defines a list called `token_specification`.  
+Each element of this list contains two components:
+
+1. **Token name** – the category assigned to the lexeme.
+2. **Regular expression pattern** – the rule used to detect that lexeme in the input string.
+
+The order of the token rules is important because the lexer processes them sequentially.  
+More specific patterns must appear before more general ones in order to avoid incorrect matching.
+
+For example, scientific numbers such as `2e3` or `1.5E-2` must be detected before integer numbers.  
+Otherwise, the lexer could incorrectly interpret the number as separate tokens.
+
+The lexer supports several token types including numbers, mathematical operators, functions, variables, and parentheses.
+
 ```python
          self.token_specification = [
     ('SCI_NUMBER', r'\d+(\.\d+)?[eE][+-]?\d+'),
@@ -102,15 +116,7 @@ The lexer scans the input string and generates tokens.
 
 Logic of the algorithm:
 
-1. The program scans the input string using re.finditer.
-
-2. Each match corresponds to a token type.
-
-3. Whitespace tokens are ignored.
-
-4. Invalid characters produce an error.
-
-5. Valid tokens are added to the token list.
+The tokenization process works by scanning the input string using the `re.finditer` function, which searches the text for patterns defined in the combined regular expression. Each time a pattern is matched, the lexer determines the corresponding token type and extracts the matched value. If the matched token is whitespace, it is ignored and not added to the result. If the pattern corresponds to `MISMATCH`, it means that the character does not belong to any valid token category, so the lexer raises a syntax error. Otherwise, the lexer creates a token containing its type and value and adds it to the list of tokens. After scanning the entire input string, the method returns the complete sequence of tokens.
 
 **Interactive Lexer**
 
