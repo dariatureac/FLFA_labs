@@ -4,7 +4,7 @@ import random
 class RegexInterpreter:
     def __init__(self, limit=5):
         self.limit = limit
-
+'hiohioh'
     def generate(self, regex):
         result = ""
         i = 0
