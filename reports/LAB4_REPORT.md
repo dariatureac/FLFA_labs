@@ -138,7 +138,7 @@ Sample: `LNOOOQ3`, `LMOOOPPQ2`
 
 Sample: `RSUWXX`, `RRRSVWY Y`
 
-jijijo
+
 ## Challenges & Difficulties
 
 * **Group Multipliers:** Applying `^2` to a group like `(X|Y|Z)^2` was challenging. The interpreter must first resolve the choice (e.g., pick `X`) and then apply the multiplier to the chosen character, resulting in `XX`.
